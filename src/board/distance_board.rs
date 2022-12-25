@@ -1,4 +1,4 @@
-use std::cmp::Reverse;
+use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
 use super::{Board, Owner};
@@ -18,7 +18,7 @@ pub enum ManhattanDistance {
 
 impl DistanceBoard {
 
-    pub fn new(board: &Board, from_owner: Owner) -> Self {
+    pub fn from_owner(board: &Board, from_owner: Owner) -> Self {
         // let mut calculated: FieldHashSet<(u32, u32)> = Default::default();
         let mut distances = vec![ManhattanDistance::Unreachable; (board.width * board.height) as usize];
 
@@ -119,6 +119,14 @@ impl DistanceBoard {
             distances,
         }
     }
+
+    /// Finds all the directions which are best for going up or down the distancefield
+    pub fn towards(&self, x: u32, y: u32, ordering: Ordering) -> [bool; 4] {
+        todo!()
+        // note: exclude Unreachable
+    }
+
+
 }
 
 fn adjacent_in_range(x: u32, y: u32, width: u32, height: u32) -> [Option<(u32, u32)>; 4] {
@@ -130,36 +138,3 @@ fn adjacent_in_range(x: u32, y: u32, width: u32, height: u32) -> [Option<(u32, u
         if 0 <= x-1 && x-1 < width && 0 <= y && y < height { Some((x-1, y)) } else { None },
     ]
 }
-
-// struct FnvHasher(u64);
-//
-// impl Default for FnvHasher {
-//
-//     #[inline]
-//     fn default() -> FnvHasher {
-//         FnvHasher(0xcbf29ce484222325)
-//     }
-// }
-//
-// impl Hasher for FnvHasher {
-//     #[inline]
-//     fn finish(&self) -> u64 {
-//         self.0
-//     }
-//
-//     #[inline]
-//     fn write(&mut self, bytes: &[u8]) {
-//         let FnvHasher(mut hash) = *self;
-//
-//         for byte in bytes.iter() {
-//             hash = hash ^ (*byte as u64);
-//             hash = hash.wrapping_mul(0x100000001b3);
-//         }
-//
-//         *self = FnvHasher(hash);
-//     }
-// }
-//
-// type FieldHashBuilder = BuildHasherDefault<FnvHasher>;
-//
-// type FieldHashSet<T> = HashSet<T, FieldHashBuilder>;

@@ -38,7 +38,7 @@ fn main() {
         let duration = start.elapsed();
         println!("WAIT");
 
-        let distance_board = DistanceBoard::new(&board, Owner::Me);
+        let distance_board = DistanceBoard::from_owner(&board, Owner::Me);
 
 
 

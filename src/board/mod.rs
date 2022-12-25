@@ -8,11 +8,11 @@ pub use owner::*;
 pub use field::*;
 
 pub struct Board {
-    width: u32,
-    height: u32,
-    my_matter: u32,
-    opponent_matter: u32,
-    fields: Vec<Field>,
+    pub width: u32,
+    pub height: u32,
+    pub my_matter: u32,
+    pub opponent_matter: u32,
+    pub fields: Vec<Field>,
 }
 
 impl Board {
