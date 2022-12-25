@@ -10,6 +10,8 @@ pub use field::*;
 pub struct Board {
     width: u32,
     height: u32,
+    my_matter: u32,
+    opponent_matter: u32,
     fields: Vec<Field>,
 }
 
@@ -42,13 +44,23 @@ impl Board {
         ]
     }
 
+    pub fn robot_count(&self, owner: Owner) -> u32 {
+        self.fields
+            .iter()
+            .map(|x| {
+                if x.owner == owner {
+                    x.num_units
+                } else { 0 }
+            })
+            .sum()
+    }
+
     pub fn process_harvest_cycle(&self) -> Self {
         let new_fields = self.fields.clone();
 
         let mut new_board = Board {
-            height: self.height,
-            width: self.width,
             fields: new_fields,
+            ..*self
         };
 
         // reduce scrap per tile amount by min(#surrounding recyclers in range, scrap)

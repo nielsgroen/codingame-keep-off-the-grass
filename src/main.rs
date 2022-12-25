@@ -1,4 +1,5 @@
 use std::io;
+use std::time::Instant;
 
 
 
@@ -7,8 +8,14 @@ macro_rules! parse_input {
 }
 
 mod board;
+mod agent;
+mod action;
 
 use board::Field;
+use board::boardbuilder::BoardBuilder;
+use board::boardbuilder::SizeKnown;
+use board::distance_board::DistanceBoard;
+use board::Owner;
 
 /**
  * Auto-generated code below aims at helping you parse
@@ -18,35 +25,24 @@ fn main() {
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
     let inputs = input_line.split(" ").collect::<Vec<_>>();
-    let width = parse_input!(inputs[0], i32);
-    let height = parse_input!(inputs[1], i32);
+    let width = parse_input!(inputs[0], i32) as u32;
+    let height = parse_input!(inputs[1], i32) as u32;
+
 
     // game loop
     loop {
-        let mut input_line = String::new();
-        io::stdin().read_line(&mut input_line).unwrap();
-        let inputs = input_line.split(" ").collect::<Vec<_>>();
-        let my_matter = parse_input!(inputs[0], i32);
-        let opp_matter = parse_input!(inputs[1], i32);
-        for i in 0..height as usize {
-            for j in 0..width as usize {
-                let mut input_line = String::new();
-                io::stdin().read_line(&mut input_line).unwrap();
-                let inputs = input_line.split(" ").collect::<Vec<_>>();
-                let scrap_amount = parse_input!(inputs[0], i32);
-                let owner = parse_input!(inputs[1], i32); // 1 = me, 0 = foe, -1 = neutral
-                let units = parse_input!(inputs[2], i32);
-                let recycler = parse_input!(inputs[3], i32);
-                let can_build = parse_input!(inputs[4], i32);
-                let can_spawn = parse_input!(inputs[5], i32);
-                let in_range_of_recycler = parse_input!(inputs[6], i32);
-            }
-        }
+        let start = Instant::now();
+        let builder = BoardBuilder::new(width, height).fields_from_stdin();
+        let board = builder.build();
 
-        // Write an action using println!("message...");
-        // To debug: eprintln!("Debug message...");
-
+        let duration = start.elapsed();
         println!("WAIT");
+
+        let distance_board = DistanceBoard::new(&board, Owner::Me);
+
+
+
+        eprintln!("Time elapsed in micros: {}", duration.as_micros());
     }
 }
 

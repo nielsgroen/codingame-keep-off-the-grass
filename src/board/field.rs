@@ -18,7 +18,7 @@ impl Field {
     }
 
     pub fn from_input_line(input_line: &[&str]) -> Self {
-        let scrap_amount = parse_input!(input_line[0], u32);
+        let scrap_amount = parse_input!(input_line[0], i32);
         let owner = parse_input!(input_line[1], i32); // 1 = me, 0 = foe, -1 = neutral
         let units = parse_input!(input_line[2], i32);
         let recycler = parse_input!(input_line[3], i32);
@@ -27,7 +27,7 @@ impl Field {
         let in_range_of_recycler = parse_input!(input_line[6], i32);
 
         Self {
-            scrap_amount,
+            scrap_amount: scrap_amount as u32,
             owner: Owner::from_num(owner),
             num_units: units as u32,
             has_recycler: recycler == 1,

@@ -23,8 +23,12 @@ impl Eq for Owner {}
 
 impl PartialEq<Self> for Owner {
     fn eq(&self, other: &Self) -> bool {
-        // TODO: maybe recursive loop ?
-        self == other
+        match (self, other) {
+            (Owner::Me, Owner::Me) => true,
+            (Owner::Neutral, Owner::Neutral) => true,
+            (Owner::Opponent, Owner::Opponent) => true,
+            _ => false,
+        }
     }
 }
 
