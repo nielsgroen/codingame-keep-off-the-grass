@@ -7,5 +7,5 @@ pub mod simple_economy;
 
 
 pub trait Agent {
-    fn generate_actions(board: Board) -> Vec<Action>;
+    fn generate_actions(&mut self, board: Board) -> Vec<Action>;
 }

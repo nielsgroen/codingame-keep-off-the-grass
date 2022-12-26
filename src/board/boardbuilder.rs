@@ -38,7 +38,7 @@ impl BoardBuilder<SizeKnown> {
                 io::stdin().read_line(&mut input_line).unwrap();
                 let inputs = input_line.trim().split([' ', '\n']).collect::<Vec<_>>();
 
-                self.fields.push(Field::from_input_line(&inputs));
+                self.fields.push(Field::from_input_line(&inputs, j as u32, i as u32));
             }
         }
 

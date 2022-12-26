@@ -122,8 +122,23 @@ impl DistanceBoard {
 
     /// Finds all the directions which are best for going up or down the distancefield
     pub fn towards(&self, x: u32, y: u32, ordering: Ordering) -> [bool; 4] {
-        todo!()
-        // note: exclude Unreachable
+        let own_distance = self.distances[(x + self.width * y) as usize];
+        let adjacent_fields = adjacent_in_range(x, y, self.width, self.height);
+
+        [
+            if let Some((x, y)) = adjacent_fields[0] {
+                self.distances[(x + self.width * y) as usize].cmp(&own_distance) == ordering
+            } else { false },
+            if let Some((x, y)) = adjacent_fields[1] {
+                self.distances[(x + self.width * y) as usize].cmp(&own_distance) == ordering
+            } else { false },
+            if let Some((x, y)) = adjacent_fields[2] {
+                self.distances[(x + self.width * y) as usize].cmp(&own_distance) == ordering
+            } else { false },
+            if let Some((x, y)) = adjacent_fields[3] {
+                self.distances[(x + self.width * y) as usize].cmp(&own_distance) == ordering
+            } else { false },
+        ]
     }
 
 

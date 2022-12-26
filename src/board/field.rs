@@ -3,6 +3,8 @@ use super::Owner;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Field {
+    pub x: u32,
+    pub y: u32,
     pub scrap_amount: u32,
     pub owner: Owner,
     pub num_units: u32,
@@ -17,7 +19,7 @@ impl Field {
         self.scrap_amount == 0
     }
 
-    pub fn from_input_line(input_line: &[&str]) -> Self {
+    pub fn from_input_line(input_line: &[&str], x: u32, y: u32) -> Self {
         let scrap_amount = parse_input!(input_line[0], i32);
         let owner = parse_input!(input_line[1], i32); // 1 = me, 0 = foe, -1 = neutral
         let units = parse_input!(input_line[2], i32);
@@ -27,6 +29,8 @@ impl Field {
         let in_range_of_recycler = parse_input!(input_line[6], i32);
 
         Self {
+            x,
+            y,
             scrap_amount: scrap_amount as u32,
             owner: Owner::from_num(owner),
             num_units: units as u32,

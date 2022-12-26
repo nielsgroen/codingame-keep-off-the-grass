@@ -1,7 +1,7 @@
 /// Lists the action types
 
 use std::fmt::{Display, Formatter};
-use std::io::Take;
+use std::io::{BufWriter, stdout, Take, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const TAUNTS: [&'static str; 4] = [
@@ -30,11 +30,19 @@ impl Action {
         Self::Message(TAUNTS[(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().subsec_nanos() as usize % TAUNTS.len()) as usize].to_string())
     }
 
-    pub fn log_actions(actions: impl IntoIterator<Item=Action>) {
+    pub fn log_turn(actions: impl IntoIterator<Item=Action>) {
+        let mut total_actions: u32 = 0;
+        let mut result = String::new();
         for action in actions {
-            print!("{};", action);
-            println!();
+            result.push_str(&format!("{};", action));
+            total_actions += 1;
         }
+
+        if total_actions == 0 {
+            result.push_str("WAIT;");
+        }
+
+        println!("{}", result);
     }
 }
 
