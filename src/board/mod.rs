@@ -2,7 +2,7 @@ pub mod owner;
 pub mod boardbuilder;
 pub mod field;
 pub mod distance_board;
-pub mod mine_board;
+pub mod yield_board;
 
 use std::cmp::{max, min};
 pub use owner::*;

@@ -1,14 +1,15 @@
 use std::cmp::min;
 use super::Board;
 
+/// Provides the yields for mining on a position, assuming no other recyclers are nearby
 #[derive(Clone, Debug)]
-pub struct MineBoard {
+pub struct YieldBoard {
     pub width: u32,
     pub height: u32,
     pub prospective_scrap: Vec<u32>,
 }
 
-impl MineBoard {
+impl YieldBoard {
 
     pub fn new(board: &Board) -> Self {
         let prospective_scrap = board.fields
