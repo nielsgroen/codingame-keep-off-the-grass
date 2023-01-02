@@ -29,7 +29,11 @@ fn main() {
     let width = parse_input!(inputs[0], i32) as u32;
     let height = parse_input!(inputs[1], i32) as u32;
 
-    let mut agent = SimpleEconomyAgent {};
+    let mut agent = SimpleEconomyAgent {
+        min_scrap_lead: 12,
+        recycler_min_yield: 20,
+        expected_mining_discount: 0.8,
+    };
 
     // game loop
     loop {

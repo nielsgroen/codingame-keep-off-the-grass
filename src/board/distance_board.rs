@@ -1,13 +1,14 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, HashSet};
 use std::hash::{BuildHasherDefault, Hasher};
+use super::adjacent_in_range;
 use super::{Board, Owner};
 
 #[derive(Clone, Debug)]
 pub struct DistanceBoard {
-    width: u32,
-    height: u32,
-    distances: Vec<ManhattanDistance>,
+    pub width: u32,
+    pub height: u32,
+    pub distances: Vec<ManhattanDistance>,
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
@@ -40,7 +41,7 @@ impl DistanceBoard {
                         let adjacent_coords = adjacent_coords
                             .into_iter()
                             .flatten()
-                            .filter(|x| !board.get_field(x.0, x.1).unwrap().is_grass())
+                            .filter(|x| board.get_field(x.0, x.1).unwrap().is_traversible())
                             .filter(|x| board.get_field(x.0, x.1).unwrap().owner != from_owner)
                             .filter(|x| distances[(x.0 + x.1 * board.width) as usize ] == ManhattanDistance::Unreachable);
 
@@ -59,20 +60,20 @@ impl DistanceBoard {
             }
         }
 
-        // now initialize owned fields w/o robots
+        // now initialize owned fields w/o robots and w/o recyclers
         for i in 0..board.width {
             for j in 0..board.height {
                 let current_field = board.get_field(i, j).unwrap();
 
-                match (current_field.owner, current_field.num_units) {
-                    (owner, 0) if owner == from_owner => {
+                match (current_field.owner, current_field.num_units, current_field.has_recycler) {
+                    (owner, 0, false) if owner == from_owner => {
                         distances[(i + j * board.width) as usize] = ManhattanDistance::Dist(1);
 
                         let adjacent_coords = adjacent_in_range(i, j, board.width, board.height);
                         let adjacent_coords = adjacent_coords
                             .into_iter()
                             .flatten()
-                            .filter(|x| !board.get_field(x.0, x.1).unwrap().is_grass())
+                            .filter(|x| board.get_field(x.0, x.1).unwrap().is_traversible())
                             .filter(|x| board.get_field(x.0, x.1).unwrap().owner != from_owner)
                             .filter(|x| distances[(x.0 + x.1 * board.width) as usize ] == ManhattanDistance::Unreachable);
 
@@ -98,7 +99,7 @@ impl DistanceBoard {
             let adjacent_coords = adjacent_coords
                 .into_iter()
                 .flatten()
-                .filter(|x| !board.get_field(x.0, x.1).unwrap().is_grass())
+                .filter(|x| board.get_field(x.0, x.1).unwrap().is_traversible())
                 .filter(|x| distances[(x.0 + x.1 * board.width) as usize ] == ManhattanDistance::Unreachable);
 
             frontier.extend(
@@ -118,6 +119,10 @@ impl DistanceBoard {
             height: board.height,
             distances,
         }
+    }
+
+    pub fn get_field(&self, x: u32, y: u32) -> Option<&ManhattanDistance> {
+        self.distances.get((x + y * self.width) as usize)
     }
 
     /// Finds all the directions which are best for going up or down the distancefield
@@ -141,15 +146,5 @@ impl DistanceBoard {
         ]
     }
 
-
 }
 
-fn adjacent_in_range(x: u32, y: u32, width: u32, height: u32) -> [Option<(u32, u32)>; 4] {
-    // NESW
-    [
-        if 0 <= x && x < width && 0 <= y-1 && y-1 < height { Some((x, y-1)) } else { None },
-        if 0 <= x+1 && x+1 < width && 0 <= y && y < height { Some((x+1, y)) } else { None },
-        if 0 <= x && x < width && 0 <= y+1 && y+1 < height { Some((x, y+1)) } else { None },
-        if 0 <= x-1 && x-1 < width && 0 <= y && y < height { Some((x-1, y)) } else { None },
-    ]
-}

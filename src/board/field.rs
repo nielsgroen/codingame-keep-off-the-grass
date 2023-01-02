@@ -19,6 +19,10 @@ impl Field {
         self.scrap_amount == 0
     }
 
+    pub fn is_traversible(&self) -> bool {
+        !self.is_grass() && !self.has_recycler
+    }
+
     pub fn from_input_line(input_line: &[&str], x: u32, y: u32) -> Self {
         let scrap_amount = parse_input!(input_line[0], i32);
         let owner = parse_input!(input_line[1], i32); // 1 = me, 0 = foe, -1 = neutral

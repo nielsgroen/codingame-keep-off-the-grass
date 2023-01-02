@@ -19,7 +19,7 @@ pub enum Action {
         to: (u32, u32),
     },
     Build(u32, u32),
-    Spawn(u32, u32),
+    Spawn(u32, u32, u32),
     Message(String),
     Wait,
 }
@@ -55,8 +55,8 @@ impl Display for Action {
             Self::Build(x, y) => {
                 write!(f, "BUILD {} {}", x, y)
             },
-            Self::Spawn(x, y) => {
-                write!(f, "SPAWN {} {}", x, y)
+            Self::Spawn(amount, x, y) => {
+                write!(f, "SPAWN {} {} {}", amount, x, y)
             },
             Self::Message(msg) => {
                 write!(f, "MESSAGE {}", msg)

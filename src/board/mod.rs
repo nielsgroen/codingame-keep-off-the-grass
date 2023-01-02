@@ -3,6 +3,8 @@ pub mod boardbuilder;
 pub mod field;
 pub mod distance_board;
 pub mod yield_board;
+pub mod mine_duration_board;
+pub mod recycler_range_board;
 
 use std::cmp::{max, min};
 pub use owner::*;
@@ -115,6 +117,14 @@ impl Board {
     }
 }
 
-
+pub fn adjacent_in_range(x: u32, y: u32, width: u32, height: u32) -> [Option<(u32, u32)>; 4] {
+    // NESW
+    [
+        if 0 <= x && x < width && 0 <= y-1 && y-1 < height { Some((x, y-1)) } else { None },
+        if 0 <= x+1 && x+1 < width && 0 <= y && y < height { Some((x+1, y)) } else { None },
+        if 0 <= x && x < width && 0 <= y+1 && y+1 < height { Some((x, y+1)) } else { None },
+        if 0 <= x-1 && x-1 < width && 0 <= y && y < height { Some((x-1, y)) } else { None },
+    ]
+}
 
 
