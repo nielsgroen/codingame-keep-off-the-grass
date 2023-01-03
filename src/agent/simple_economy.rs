@@ -126,7 +126,7 @@ impl SimpleEconomyAgent {
 
         let mut field_score = field_dist
             .map(|(f, dist)| {
-                let score = f.num_units + dist.distance_or_panic();
+                let score = 2 * f.num_units + dist.distance_or_panic();
                 (f, score)
             })
             .collect::<Vec<_>>();
@@ -209,6 +209,7 @@ impl SimpleEconomyAgent {
                 Owner::Opponent => 0,
             })
             .collect::<Vec<_>>();
+        let mut robot_arrival_board = vec![0_u32; board.fields.len()];
 
         for (x, y, num_units, _) in my_robot_coords.into_iter() {
             let adjacent_locations = adjacent_in_range(x, y, board.width, board.height);
@@ -220,63 +221,70 @@ impl SimpleEconomyAgent {
                     !(field.scrap_amount <= 1 && field.in_recycler_range)
                 });
 
+            // (x, y, dist)
             let adjacent_distances = adjacent_locations
                 .clone()
-                .map(|(x, y)| *opponent_distance_board.get_field(x, y).unwrap())
+                .map(|(x, y)| (x, y, *opponent_distance_board.get_field(x, y).unwrap()))
+                .filter(|(_, _, a)| !a.is_unreachable())
+                .map(|(x, y, dist)| (x, y, dist.distance_or_panic()))
                 .collect::<Vec<_>>();
+            let mut move_towards = vec![0_u32; adjacent_distances.len()];
 
-            let adjacent_arrival_count = adjacent_locations
-                .map(|(x, y)| (x, y, arrival_count_board[(x + board.width * y) as usize]));
+            // let adjacent_arrival_count = adjacent_locations
+            //     .map(|(x, y)| (x, y, arrival_count_board[(x + board.width * y) as usize]));
 
             // (x, y, score)
-            let current_adjacent_score = zip(adjacent_distances, adjacent_arrival_count)
-                .filter(|(a, _)| !a.is_unreachable())
-                .map(|(a, b)| {
-                    // let owner_score = match board.get_field(b.0, b.1).unwrap().owner {
-                    //     Owner::Me => 5,
-                    //     Owner::Neutral => 2,
-                    //     Owner::Opponent => 0,
-                    // };
-                    let score = a.distance_or_panic() * self.distance_move_weighting + b.2;
-                    (b.0, b.1, score)
-                })
-                .collect::<Vec<_>>();
+            // let current_adjacent_score = zip(adjacent_distances, adjacent_arrival_count)
+            //     .filter(|(a, _)| !a.is_unreachable())
+            //     .map(|(a, b)| {
+            //         // let owner_score = match board.get_field(b.0, b.1).unwrap().owner {
+            //         //     Owner::Me => 5,
+            //         //     Owner::Neutral => 2,
+            //         //     Owner::Opponent => 0,
+            //         // };
+            //         let score = a.distance_or_panic() * self.distance_move_weighting + b.2;
+            //         (b.0, b.1, score)
+            //     })
+            //     .collect::<Vec<_>>();
 
-            if current_adjacent_score.len() > 0 {
+            if adjacent_distances.len() > 0 {
                 // enemy reachable
-                let mut current_aspiration_score = current_adjacent_score
+                let mut current_aspiration_score = adjacent_distances
                     .iter()
                     .map(|(_, _, x)| *x)
                     .min()
-                    .unwrap_or(0u32);
+                    .unwrap();
 
                 let mut num_units_left = num_units;
-                let mut move_amounts = vec![0_u32; current_adjacent_score.len()];
-                let mut location_scores = current_adjacent_score
+                // let mut move_amounts = vec![0_u32; current_adjacent_score.len()];
+                let mut adjacent_distances_cycled = adjacent_distances
                     .clone()
                     .into_iter()
                     .enumerate()
                     .cycle();
-                let mut locations = current_adjacent_score
-                    .iter()
-                    .map(|(x, y, _)| (x, y));
+                // let mut locations = current_adjacent_score
+                //     .iter()
+                //     .map(|(x, y, _)| (x, y));
 
                 while num_units_left > 0 {
-                    let (index, (x, y, score)) = location_scores.next().unwrap();
+                    let (index, (x, y, dist)) = adjacent_distances_cycled.next().unwrap();
                     if index == 0 {
                         current_aspiration_score += 1;
                     }
+                    let field_index = (x + y * board.width) as usize;
 
-                    if move_amounts[index] + score + owner_score[(x + y * board.width) as usize] < current_aspiration_score {
-                        move_amounts[index] += 1;
-                        owner_score[(x + y * board.width) as usize] = self.movement_own_score;
+                    if robot_arrival_board[field_index] + dist + owner_score[field_index] < current_aspiration_score {
+                        robot_arrival_board[field_index] += 1;
+                        owner_score[field_index] = self.movement_own_score;
+                        move_towards[index] += 1;
                         num_units_left -= 1;
                     }
                 }
 
                 result.extend(
-                    zip(locations, move_amounts.into_iter())
-                        .map(|((to_x, to_y), amount)| Action::Move {
+                    zip(adjacent_distances.iter(), move_towards.into_iter())
+                        .filter(|(_, amount)| *amount > 0)
+                        .map(|((to_x, to_y, _), amount)| Action::Move {
                             amount,
                             from: (x, y),
                             to: (*to_x, *to_y)

@@ -30,15 +30,15 @@ fn main() {
     let height = parse_input!(inputs[1], i32) as u32;
 
     let mut agent = SimpleEconomyAgent {
-        min_scrap_lead: 12,
-        recycler_min_score: 15,
+        min_scrap_lead: 5,
+        recycler_min_score: 30,
         expected_mining_discount: 0.8,
         distance_move_weighting: 3,
         distance_mine_weighting: 2,
-        recycler_robot_adjacency_weight: 3,
-        movement_own_score: 4,
-        movement_neutral_score: 2,
-        movement_opponent_score: 0,
+        recycler_robot_adjacency_weight: 8,
+        movement_own_score: 5,
+        movement_neutral_score: 0,
+        movement_opponent_score: 3,
     };
 
     // game loop
