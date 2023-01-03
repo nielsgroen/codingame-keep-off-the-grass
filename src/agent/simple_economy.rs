@@ -114,30 +114,78 @@ impl SimpleEconomyAgent {
             .iter()
             .filter(|x| x.owner == Owner::Me)
             .filter(|x| x.is_traversible())
-            .map(|x| (x, distance_board_to_use.get_field(x.x, x.y).unwrap()));
+            .map(|x| (x, distance_board_to_use.get_field(x.x, x.y).unwrap()))
+            .filter(|(_, dist)| !dist.is_unreachable())
+            .filter(|(f, _)| { // consider only fields that are adjacent to unowned tiles
+                let adj = board.get_adjacent_fields(f.x, f.y);
+                adj
+                    .into_iter()
+                    .flatten()
+                    .any(|field| field.owner != Owner::Me && field.is_traversible())
+            });
 
-        let shortest_dist = *field_dist.clone()
-            .map(|(_, dist)| dist)
-            .min().unwrap();
-
-        let mut field_dist = field_dist
-            .filter(|(_, dist)| **dist == shortest_dist)
-            .map(|(x, _)| x)
+        let mut field_score = field_dist
+            .map(|(f, dist)| {
+                let score = f.num_units + dist.distance_or_panic();
+                (f, score)
+            })
             .collect::<Vec<_>>();
 
-        let num_placeable_fields = field_dist.len() as u32;
-        let mut robot_count_to_spawn = amount;
-        for (i, x) in field_dist.into_iter().enumerate() {
-            let mut spawn_count = robot_count_to_spawn / (num_placeable_fields - i as u32);
-            spawn_count += if robot_count_to_spawn % (num_placeable_fields - i as u32) > 0 { 1 } else { 0 };
+        field_score.sort_by(|(_, a), (_, b)| a.cmp(b));
 
-            if spawn_count > 0 {
-                result.push(Action::Spawn(spawn_count, x.x, x.y));
+        if field_score.len() > 0 {
+            let mut amount_placed = vec![0_u32; field_score.len()];
+            let mut aspiration_score = field_score[0].1;
+            let mut amount_to_go = amount;
+
+            let mut field_score_cycled = field_score
+                .iter()
+                .enumerate()
+                .cycle();
+
+            while amount_to_go > 0 {
+                let (index, (f, score)) = field_score_cycled.next().unwrap();
+                if index == 0 {
+                    aspiration_score += 1;
+                }
+
+                if amount_placed[index] + score < aspiration_score {
+                    amount_placed[index] += 1;
+                    amount_to_go -= 1;
+                }
             }
-            robot_count_to_spawn -= spawn_count;
+
+            result.extend(
+                zip(amount_placed.into_iter(), field_score)
+                    .map(|(a, (f, _))| Action::Spawn(a, f.x, f.y))
+            );
         }
 
         result
+
+        // todo!();
+        // let shortest_dist = *field_dist.clone()
+        //     .map(|(_, dist)| dist)
+        //     .min().unwrap();
+        //
+        // let mut field_dist = field_dist
+        //     .filter(|(_, dist)| **dist == shortest_dist)
+        //     .map(|(x, _)| x)
+        //     .collect::<Vec<_>>();
+        //
+        // let num_placeable_fields = field_dist.len() as u32;
+        // let mut robot_count_to_spawn = amount;
+        // for (i, x) in field_dist.into_iter().enumerate() {
+        //     let mut spawn_count = robot_count_to_spawn / (num_placeable_fields - i as u32);
+        //     spawn_count += if robot_count_to_spawn % (num_placeable_fields - i as u32) > 0 { 1 } else { 0 };
+        //
+        //     if spawn_count > 0 {
+        //         result.push(Action::Spawn(spawn_count, x.x, x.y));
+        //     }
+        //     robot_count_to_spawn -= spawn_count;
+        // }
+        //
+        // result
     }
 
     fn move_robots(&self, board: &Board, opponent_distance_board: &DistanceBoard) -> Vec<Action> {

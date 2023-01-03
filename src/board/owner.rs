@@ -19,6 +19,12 @@ impl Owner {
     }
 }
 
+impl Default for Owner {
+    fn default() -> Self {
+        Owner::Neutral
+    }
+}
+
 impl Eq for Owner {}
 
 impl PartialEq<Self> for Owner {

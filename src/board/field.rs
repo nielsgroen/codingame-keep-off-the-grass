@@ -1,7 +1,7 @@
 use super::Owner;
 
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Field {
     pub x: u32,
     pub y: u32,
