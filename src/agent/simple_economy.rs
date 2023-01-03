@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::iter::zip;
+use super::super::board::adjacent_in_range;
 use super::super::board::recycler_range_board::RecyclerRangeBoard;
 use super::super::board::yield_board::YieldBoard;
 use super::super::{DistanceBoard, Owner};
@@ -21,6 +22,7 @@ pub struct SimpleEconomyAgent {
     pub min_scrap_lead: i32,
     pub recycler_min_yield: u32,
     pub expected_mining_discount: f32,
+    pub distance_move_weighting: u32, // how important it is to move closer vs. spreading out
 }
 
 impl Agent for SimpleEconomyAgent {
@@ -118,33 +120,100 @@ impl SimpleEconomyAgent {
     fn move_robots(&self, board: &Board, opponent_distance_board: &DistanceBoard) -> Vec<Action> {
         let mut result = Vec::new();
         // keeps track of how many robots will be on a given field at the end of a turn
-        let count_to_move_to_board: Vec<u32> = Vec::with_capacity(board.fields.len());
+        let arrival_count_board: Vec<u32> = vec![0; board.fields.len()];
 
-        let my_robot_coords = board.fields.iter()
-            .filter(|x| x.owner == Owner::Me && x.num_units > 0)
-            .map(|x| (x.x, x.y, x.num_units));
+        let mut my_robot_coords = zip(board.fields.iter(), opponent_distance_board.distances.iter())
+            .filter(|(x, _)| x.owner == Owner::Me && x.num_units > 0)
+            .map(|(a, b)| (a.x, a.y, a.num_units, *b))
+            .collect::<Vec<_>>();
 
-        for (x, y, num_units) in my_robot_coords {
-            let direction_num = opponent_distance_board
-                .towards(x, y, Ordering::Less)
-                .iter()
-                .position(|x| *x);
-            // TODO: now they all take the first available direction: mix it up per bot
+        my_robot_coords.sort_by(|(_, _, _, a), (_, _, _, b)| a.cmp(b));
 
-            let to_field = match direction_num {
-                Some(0) => (x, y - 1),
-                Some(1) => (x + 1, y),
-                Some(2) => (x, y + 1),
-                Some(3) => (x - 1, y),
-                None => (x, y),
-                _ => panic!("robot_coords should hold only 4 items"),
-            };
+        for (x, y, num_units, _) in my_robot_coords.into_iter() {
+            let adjacent_distances = opponent_distance_board.get_adjacent_fields(x,y);
+            let adjacent_distances = adjacent_distances
+                .into_iter()
+                .flatten();
 
-            result.push(Action::Move {
-                amount: num_units,
-                from: (x, y),
-                to: to_field,
-            })
+            let adjacent_locations = adjacent_in_range(x, y, board.width, board.height);
+            let adjacent_locations = adjacent_locations
+                .into_iter()
+                .flatten();
+            let adjacent_arrival_count = adjacent_locations
+                .map(|(x, y)| (x, y, arrival_count_board[(x + board.width * y) as usize]));
+
+            // (x, y, score)
+            let current_adjacent_score = zip(adjacent_distances, adjacent_arrival_count)
+                .filter(|(a, _)| !a.is_unreachable())
+                .map(|(a, b)| (b.0, b.1, a.distance_or_panic() * self.distance_move_weighting + b.2))
+                .collect::<Vec<_>>();
+
+            if current_adjacent_score.len() > 0 {
+                // enemy reachable
+                let mut current_aspiration_score = current_adjacent_score
+                    .iter()
+                    .map(|(_, _, x)| *x)
+                    .min()
+                    .unwrap_or(0u32);
+
+                let mut num_units_left = num_units;
+                let mut move_amounts = vec![0_u32; current_adjacent_score.len()];
+                let mut location_scores = current_adjacent_score
+                    .clone()
+                    .into_iter()
+                    .enumerate()
+                    .cycle();
+                let mut locations = current_adjacent_score
+                    .iter()
+                    .map(|(x, y, _)| (x, y));
+
+                while num_units_left > 0 {
+                    let (index, (_, _, score)) = location_scores.next().unwrap();
+                    if index == 0 {
+                        current_aspiration_score += 1;
+                    }
+
+                    if move_amounts[index] + score < current_aspiration_score {
+                        move_amounts[index] += 1;
+                        num_units_left -= 1;
+                    }
+                }
+
+                result.extend(
+                    zip(locations, move_amounts.into_iter())
+                        .map(|((to_x, to_y), amount)| Action::Move {
+                            amount,
+                            from: (x, y),
+                            to: (*to_x, *to_y)
+                        })
+                )
+            } else {
+                // enemy unreachable
+                // TODO
+                ()
+            }
+
+
+            // let direction_num = opponent_distance_board
+            //     .towards(x, y, Ordering::Less)
+            //     .iter()
+            //     .position(|x| *x);
+            // // TODO: now they all take the first available direction: mix it up per bot
+            //
+            // let to_field = match direction_num {
+            //     Some(0) => (x, y - 1),
+            //     Some(1) => (x + 1, y),
+            //     Some(2) => (x, y + 1),
+            //     Some(3) => (x - 1, y),
+            //     None => (x, y),
+            //     _ => panic!("robot_coords should hold only 4 items"),
+            // };
+            //
+            // result.push(Action::Move {
+            //     amount: num_units,
+            //     from: (x, y),
+            //     to: to_field,
+            // })
         }
 
         result

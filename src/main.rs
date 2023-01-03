@@ -33,6 +33,7 @@ fn main() {
         min_scrap_lead: 12,
         recycler_min_yield: 20,
         expected_mining_discount: 0.8,
+        distance_move_weighting: 3,
     };
 
     // game loop

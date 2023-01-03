@@ -17,6 +17,23 @@ pub enum ManhattanDistance {
     Unreachable,
 }
 
+impl ManhattanDistance {
+    pub fn is_unreachable(self) -> bool {
+        match self {
+            ManhattanDistance::Unreachable => true,
+            _ => false,
+        }
+    }
+
+    pub fn distance_or_panic(self) -> u32 {
+        match self {
+            ManhattanDistance::Dist(x) => x,
+            _ => panic!("tried to get distance from unreachable"),
+        }
+    }
+}
+
+
 impl DistanceBoard {
 
     pub fn from_owner(board: &Board, from_owner: Owner) -> Self {
@@ -123,6 +140,15 @@ impl DistanceBoard {
 
     pub fn get_field(&self, x: u32, y: u32) -> Option<&ManhattanDistance> {
         self.distances.get((x + y * self.width) as usize)
+    }
+
+    pub fn get_adjacent_fields(&self, width: u32, height: u32) -> [Option<&ManhattanDistance>; 4] { // NESW
+        [
+            self.get_field(width, height - 1),
+            self.get_field(width + 1, height),
+            self.get_field(width, height + 1),
+            self.get_field(width - 1, height),
+        ]
     }
 
     /// Finds all the directions which are best for going up or down the distancefield
