@@ -58,6 +58,18 @@ impl Board {
             .sum()
     }
 
+    pub fn adjacent_robot_count(&self, x: u32, y: u32, owner: Owner) -> u32 {
+        let adj = self.get_adjacent_fields(x, y);
+        let adj = adj
+            .into_iter()
+            .flatten();
+
+        adj
+            .filter(|f| f.owner == owner)
+            .map(|f| f.num_units)
+            .sum()
+    }
+
     pub fn process_harvest_cycle(&self) -> Self {
         let new_fields = self.fields.clone();
 

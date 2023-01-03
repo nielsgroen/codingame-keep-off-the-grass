@@ -20,9 +20,14 @@ use super::super::board::Board;
 
 pub struct SimpleEconomyAgent {
     pub min_scrap_lead: i32,
-    pub recycler_min_yield: u32,
+    pub recycler_min_score: i32,
     pub expected_mining_discount: f32,
     pub distance_move_weighting: u32, // how important it is to move closer vs. spreading out
+    pub distance_mine_weighting: i32, // how much recycler distance weighs vs. yield
+    pub recycler_robot_adjacency_weight: u32,
+    pub movement_own_score: u32,
+    pub movement_neutral_score: u32,
+    pub movement_opponent_score: u32,
 }
 
 impl Agent for SimpleEconomyAgent {
@@ -45,7 +50,7 @@ impl Agent for SimpleEconomyAgent {
 
         let mut scrap_to_spend = board.my_matter;
         if (my_matter_robot_score as i32) < (opponent_matter_robot_score as i32 + self.min_scrap_lead) {
-            let build_commands = self.build_recyclers(&board, &prospective_mining,  scrap_to_spend / 10);
+            let build_commands = self.build_recyclers(&board, &prospective_mining, &opponent_distance_board,  scrap_to_spend / 10);
             scrap_to_spend -= build_commands.len() as u32 * 10;
             result.extend(build_commands);
         }
@@ -57,28 +62,34 @@ impl Agent for SimpleEconomyAgent {
 
 impl SimpleEconomyAgent {
 
-    fn build_recyclers(&mut self, board: &Board, yield_board: &YieldBoard, amount: u32) -> Vec<Action> {
+    fn build_recyclers(&mut self, board: &Board, yield_board: &YieldBoard, opponent_distance_board: &DistanceBoard, amount: u32) -> Vec<Action> {
         let mut result: Vec<Action> = Vec::new();
         let recycler_range_board = RecyclerRangeBoard::from_board(board);
 
-        let mut field_yield =  board.fields
+        let mut field_score =  board.fields
             .iter()
             .filter(|x| x.owner == Owner::Me)
             .filter(|x| x.is_traversible())
             .filter(|x| x.num_units == 0)
-            .map(|x| (x, yield_board.prospective_scrap[(x.x + x.y * board.width) as usize]))
+            .filter(|x| !opponent_distance_board.get_field(x.x, x.y).unwrap().is_unreachable())
+            .map(|x| (x, yield_board.prospective_scrap[(x.x + x.y * board.width) as usize], opponent_distance_board.distances[(x.x + x.y * board.width) as usize]))
+            .map(|(a, y, dist)| {
+                let enemy_robot_score = board.adjacent_robot_count(a.x, a.y, Owner::Opponent) * self.recycler_robot_adjacency_weight;
+                let score = enemy_robot_score as i32 + y as i32 - self.distance_mine_weighting * dist.distance_or_panic() as i32;
+                (a, y, score)
+            })
             .collect::<Vec<_>>();
 
-        field_yield.sort_by(|(_, a), (_, b)| (*a).cmp(b).reverse());
+        field_score.sort_by(|(_, _, a), (_, _, b)| (*a).cmp(b).reverse());
 
         // TODO: check if recycler is in range of another => then skip
-        for (field, prospective_yield) in field_yield.into_iter().take((board.my_matter / 10) as usize) {
-            if prospective_yield < self.recycler_min_yield {
+        for (field, _, score) in field_score.into_iter().take((board.my_matter / 10) as usize) {
+            if score < self.recycler_min_score {
                 break;
             }
 
             if !recycler_range_board.get_field(field.x, field.y).unwrap() {
-                eprintln!("x {} y {} prospective yield {}", field.x, field.y, prospective_yield);
+                eprintln!("x {} y {} prospective score {}", field.x, field.y, score);
                 result.push(Action::Build(field.x, field.y))
             }
         }
@@ -89,11 +100,21 @@ impl SimpleEconomyAgent {
     fn spawn_robots(&mut self, board: &Board, opponent_distance_board: &DistanceBoard, amount: u32) -> Vec<Action> {
         let mut result: Vec<Action> = Vec::new();
 
+        let neutral_distance_board = DistanceBoard::from_owner(board, Owner::Neutral);
+        let mut distance_board_to_use =
+            if zip(opponent_distance_board.distances.iter(), board.fields.iter())
+                .all(|(dist, f)| dist.is_unreachable() || f.owner != Owner::Me)
+            {
+                &neutral_distance_board
+            } else {
+                opponent_distance_board
+            };
+
         let field_dist = board.fields
             .iter()
             .filter(|x| x.owner == Owner::Me)
             .filter(|x| x.is_traversible())
-            .map(|x| (x, opponent_distance_board.get_field(x.x, x.y).unwrap()));
+            .map(|x| (x, distance_board_to_use.get_field(x.x, x.y).unwrap()));
 
         let shortest_dist = *field_dist.clone()
             .map(|(_, dist)| dist)
@@ -110,7 +131,9 @@ impl SimpleEconomyAgent {
             let mut spawn_count = robot_count_to_spawn / (num_placeable_fields - i as u32);
             spawn_count += if robot_count_to_spawn % (num_placeable_fields - i as u32) > 0 { 1 } else { 0 };
 
-            result.push(Action::Spawn(spawn_count, x.x, x.y));
+            if spawn_count > 0 {
+                result.push(Action::Spawn(spawn_count, x.x, x.y));
+            }
             robot_count_to_spawn -= spawn_count;
         }
 
@@ -129,23 +152,46 @@ impl SimpleEconomyAgent {
 
         my_robot_coords.sort_by(|(_, _, _, a), (_, _, _, b)| a.cmp(b));
 
-        for (x, y, num_units, _) in my_robot_coords.into_iter() {
-            let adjacent_distances = opponent_distance_board.get_adjacent_fields(x,y);
-            let adjacent_distances = adjacent_distances
-                .into_iter()
-                .flatten();
+        let neutral_distance_board = DistanceBoard::from_owner(board, Owner::Neutral);
+        let mut owner_score = board.fields
+            .iter()
+            .map(|f| match f.owner {
+                Owner::Me => 5,
+                Owner::Neutral => 1,
+                Owner::Opponent => 0,
+            })
+            .collect::<Vec<_>>();
 
+        for (x, y, num_units, _) in my_robot_coords.into_iter() {
             let adjacent_locations = adjacent_in_range(x, y, board.width, board.height);
             let adjacent_locations = adjacent_locations
                 .into_iter()
-                .flatten();
+                .flatten()
+                .filter(|(x, y)| {
+                    let field = board.get_field(*x, *y).unwrap();
+                    !(field.scrap_amount <= 1 && field.in_recycler_range)
+                });
+
+            let adjacent_distances = adjacent_locations
+                .clone()
+                .map(|(x, y)| *opponent_distance_board.get_field(x, y).unwrap())
+                .collect::<Vec<_>>();
+
             let adjacent_arrival_count = adjacent_locations
                 .map(|(x, y)| (x, y, arrival_count_board[(x + board.width * y) as usize]));
 
             // (x, y, score)
             let current_adjacent_score = zip(adjacent_distances, adjacent_arrival_count)
                 .filter(|(a, _)| !a.is_unreachable())
-                .map(|(a, b)| (b.0, b.1, a.distance_or_panic() * self.distance_move_weighting + b.2))
+                .map(|(a, b)| {
+                    // let owner_score = match board.get_field(b.0, b.1).unwrap().owner {
+                    //     Owner::Me => 5,
+                    //     Owner::Neutral => 2,
+                    //     Owner::Opponent => 0,
+                    // };
+                    let score = a.distance_or_panic() * self.distance_move_weighting + b.2;
+                    (b.0, b.1, score)
+                })
                 .collect::<Vec<_>>();
 
             if current_adjacent_score.len() > 0 {
@@ -168,13 +214,14 @@ impl SimpleEconomyAgent {
                     .map(|(x, y, _)| (x, y));
 
                 while num_units_left > 0 {
-                    let (index, (_, _, score)) = location_scores.next().unwrap();
+                    let (index, (x, y, score)) = location_scores.next().unwrap();
                     if index == 0 {
                         current_aspiration_score += 1;
                     }
 
-                    if move_amounts[index] + score < current_aspiration_score {
+                    if move_amounts[index] + score + owner_score[(x + y * board.width) as usize] < current_aspiration_score {
                         move_amounts[index] += 1;
+                        owner_score[(x + y * board.width) as usize] = self.movement_own_score;
                         num_units_left -= 1;
                     }
                 }
@@ -189,8 +236,25 @@ impl SimpleEconomyAgent {
                 )
             } else {
                 // enemy unreachable
-                // TODO
-                ()
+                let direction_num = neutral_distance_board
+                    .towards(x, y, Ordering::Less)
+                    .iter()
+                    .position(|x| *x);
+
+                let to_field = match direction_num {
+                    Some(0) => (x, y - 1),
+                    Some(1) => (x + 1, y),
+                    Some(2) => (x, y + 1),
+                    Some(3) => (x - 1, y),
+                    None => (x, y),
+                    _ => panic!("robot_coords should hold only 4 items"),
+                };
+
+                result.push(Action::Move {
+                    amount: num_units,
+                    from: (x, y),
+                    to: to_field,
+                })
             }
 
 

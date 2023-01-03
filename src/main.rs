@@ -31,9 +31,14 @@ fn main() {
 
     let mut agent = SimpleEconomyAgent {
         min_scrap_lead: 12,
-        recycler_min_yield: 20,
+        recycler_min_score: 15,
         expected_mining_discount: 0.8,
         distance_move_weighting: 3,
+        distance_mine_weighting: 2,
+        recycler_robot_adjacency_weight: 3,
+        movement_own_score: 4,
+        movement_neutral_score: 2,
+        movement_opponent_score: 0,
     };
 
     // game loop

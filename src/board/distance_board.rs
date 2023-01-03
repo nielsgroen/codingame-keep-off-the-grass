@@ -82,8 +82,8 @@ impl DistanceBoard {
             for j in 0..board.height {
                 let current_field = board.get_field(i, j).unwrap();
 
-                match (current_field.owner, current_field.num_units, current_field.has_recycler) {
-                    (owner, 0, false) if owner == from_owner => {
+                match (current_field.owner, current_field.num_units, current_field.is_traversible()) {
+                    (owner, 0, true) if owner == from_owner => {
                         distances[(i + j * board.width) as usize] = ManhattanDistance::Dist(1);
 
                         let adjacent_coords = adjacent_in_range(i, j, board.width, board.height);
